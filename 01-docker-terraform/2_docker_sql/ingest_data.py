@@ -17,14 +17,15 @@ def main(params):
     port = params.port
     db = params.db
     table_name = params.table_name
-    url = params.url
+    url_taxi_data = params.url_taxi_data
+    url_zones_data = params.url_zones_data
 
-    if url.endswith('.csv.gz'):
+    if url_taxi_data.endswith('.csv.gz'):
         csv_name = 'output.csv.gz'
     else:
         csv_name = 'output.csv'
 
-    os.system(f"wget {url} -O {csv_name}")
+    os.system(f"wget {url_taxi_data} -O {csv_name}")
 
     engine = create_engine(f'postgresql://{user}:{password}@{host}:{port}/{db}')
 
@@ -32,8 +33,8 @@ def main(params):
 
     df = next(df_iter)
 
-    df.tpep_pickup_datetime = pd.to_datetime(df.tpep_pickup_datetime)
-    df.tpep_dropoff_datetime = pd.to_datetime(df.tpep_dropoff_datetime)
+    df.lpep_pickup_datetime = pd.to_datetime(df.lpep_pickup_datetime)
+    df.lpep_dropoff_datetime = pd.to_datetime(df.lpep_dropoff_datetime)
 
     df.head(n=0).to_sql(name=table_name, con=engine, if_exists='replace')
 
@@ -46,8 +47,8 @@ def main(params):
             
             df = next(df_iter)
 
-            df.tpep_pickup_datetime = pd.to_datetime(df.tpep_pickup_datetime)
-            df.tpep_dropoff_datetime = pd.to_datetime(df.tpep_dropoff_datetime)
+            df.lpep_pickup_datetime = pd.to_datetime(df.lpep_pickup_datetime)
+            df.lpep_dropoff_datetime = pd.to_datetime(df.lpep_dropoff_datetime)
 
             df.to_sql(name=table_name, con=engine, if_exists='append')
 
@@ -59,6 +60,17 @@ def main(params):
             print("Finished ingesting data into the postgres database")
             break
 
+    if url_zones_data.endswith('.csv.gz'):
+        csv_name = 'taxi_zone_lookup.csv.gz'
+    else:
+        csv_name = 'taxi_zone_lookup.csv'
+
+    os.system(f"wget {url_zones_data} -O {csv_name}")
+
+    df_zones = pd.read_csv(csv_name)
+    df_zones.head()
+    df_zones.to_sql(name='zones', con=engine, if_exists='replace')
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Ingest CSV data to Postgres')
 
@@ -68,7 +80,8 @@ if __name__ == '__main__':
     parser.add_argument('--port', required=True, help='port for postgres')
     parser.add_argument('--db', required=True, help='database name for postgres')
     parser.add_argument('--table_name', required=True, help='name of the table where we will write the results to')
-    parser.add_argument('--url', required=True, help='url of the csv file')
+    parser.add_argument('--url_taxi_data', required=True, help='url of the taxi data csv file')
+    parser.add_argument('--url_zones_data', required=True, help='url of the zones data csv file')
 
     args = parser.parse_args()
 
